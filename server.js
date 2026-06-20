@@ -125,7 +125,11 @@ function requireAdmin(req, res, next) {
 }
 
 // Cles statiques persistantes (env var STATIC_KEYS="NomSite:cle,AutreSite:autrecle")
-const STATIC_KEYS = {};
+// Cles hardcodees (persistantes sans env var)
+const HARDCODED_KEYS = {
+  'boulangerie-zrevents06-key-2024': 'Boulangerie ZREvents06',
+};
+const STATIC_KEYS = { ...HARDCODED_KEYS };
 (process.env.STATIC_KEYS || '').split(',').forEach(pair => {
   const idx = pair.indexOf(':');
   if (idx > 0) {
