@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme_jwt_secret_logdash';
 const DB_PATH = path.join(__dirname, 'data.db');
 
-// ─── SECURITY HEADERS (Helmet) ────────────────────────────────────────────────
+// ─── SECURITY HEADERS (Helmet) ────────────────────────────────────────────
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -32,7 +32,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// ─── CORS RESTREINT ───────────────────────────────────────────────────────────
+// ─── CORS RESTREINT ─────────────────────────────────────────────────────
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
@@ -41,42 +41,42 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Pas d'origine = requête server-to-server ou curl → autorisé pour /api/ingest
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin)) {
       return callback(null, true);
     }
-    callback(new Error('CORS: origine non autorisée'));
+    callback(new Error('CORS: origine non autorisee'));
   },
   credentials: true,
 }));
 
-// ─── RATE LIMITING ────────────────────────────────────────────────────────────
+// ─── TRUST PROXY (Render reverse proxy) ────────────────────────────────────────
 
-// Login : 5 tentatives / 15 min
+app.set('trust proxy', 1);
+
+// ─── RATE LIMITING ────────────────────────────────────────────────────────────────
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
+  message: { error: 'Trop de tentatives. Reessayez dans 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
 });
 
-// Ingest : 300 req / min par IP
 const ingestLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 300,
-  message: { error: 'Trop de requêtes.' },
+  message: { error: 'Trop de requetes.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// API générale : 500 req / 15 min par IP
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 500,
-  message: { error: 'Trop de requêtes.' },
+  message: { error: 'Trop de requetes.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -85,9 +85,9 @@ app.use('/api/', apiLimiter);
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/ingest', ingestLimiter);
 
-// ─── BLOCKLIST LOGIN (verrouillage temporaire en mémoire) ─────────────────────
+// ─── BLOCKLIST LOGIN ─────────────────────────────────────────────────────────────────
 
-const loginFailures = new Map(); // ip → { count, unlockedAt }
+const loginFailures = new Map();
 const MAX_FAILURES = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 
@@ -113,7 +113,7 @@ function clearFailures(ip) {
   loginFailures.delete(ip);
 }
 
-// ─── INPUT SANITIZATION ───────────────────────────────────────────────────────
+// ─── INPUT SANITIZATION ───────────────────────────────────────────────────────────────────────
 
 function sanitizeStr(val, maxLen = 1000) {
   if (typeof val !== 'string') return val;
@@ -123,7 +123,7 @@ function sanitizeStr(val, maxLen = 1000) {
 app.use(express.json({ limit: '512kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ─── DATABASE ────────────────────────────────────────────────────────────────
+// ─── DATABASE ────────────────────────────────────────────────────────────────────────────
 
 let db;
 let SQL;
@@ -177,7 +177,7 @@ async function initDB() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)`);
 
   saveDB();
-  console.log('[DB] Base de données initialisée');
+  console.log('[DB] Base de donnees initialisee');
 }
 
 function saveDB() {
@@ -201,47 +201,47 @@ function getQuery(sql, params = []) {
   return rows;
 }
 
-// ─── AUTH MIDDLEWARE ─────────────────────────────────────────────────────────
+// ─── AUTH MIDDLEWARE ─────────────────────────────────────────────────────────────────────
 
 function requireAuth(req, res, next) {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Non authentifié' });
+  if (!token) return res.status(401).json({ error: 'Non authentifie' });
   try {
     req.admin = jwt.verify(token, JWT_SECRET);
     next();
   } catch {
-    res.status(401).json({ error: 'Token invalide ou expiré' });
+    res.status(401).json({ error: 'Token invalide ou expire' });
   }
 }
 
 function requireAdmin(req, res, next) {
   requireAuth(req, res, () => {
-    if (req.admin.role !== 'admin') return res.status(403).json({ error: 'Accès refusé' });
+    if (req.admin.role !== 'admin') return res.status(403).json({ error: 'Acces refuse' });
     next();
   });
 }
 
-// ─── API KEY MIDDLEWARE ───────────────────────────────────────────────────────
+// ─── API KEY MIDDLEWARE ───────────────────────────────────────────────────────────────────
 
 function requireApiKey(req, res, next) {
   const key = req.headers['x-api-key'];
-  if (!key) return res.status(401).json({ error: 'Clé API manquante' });
+  if (!key) return res.status(401).json({ error: 'Cle API manquante' });
 
   const keyHash = crypto.createHash('sha256').update(key).digest('hex');
   const rows = getQuery('SELECT * FROM api_keys WHERE key_hash = ? AND active = 1', [keyHash]);
-  if (rows.length === 0) return res.status(401).json({ error: 'Clé API invalide' });
+  if (rows.length === 0) return res.status(401).json({ error: 'Cle API invalide' });
 
   req.site = rows[0];
   runQuery('UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE id = ?', [rows[0].id]);
   next();
 }
 
-// ─── AUTH ROUTES ─────────────────────────────────────────────────────────────
+// ─── AUTH ROUTES ─────────────────────────────────────────────────────────────────────────
 
 app.post('/api/auth/login', async (req, res) => {
   const ip = req.ip || req.connection.remoteAddress;
   if (checkLockout(ip)) {
-    return res.status(429).json({ error: 'Compte temporairement bloqué. Réessayez dans 15 minutes.' });
+    return res.status(429).json({ error: 'Compte temporairement bloque. Reessayez dans 15 minutes.' });
   }
 
   const { username, password } = req.body;
@@ -251,7 +251,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const rows = getQuery('SELECT * FROM admins WHERE username = ?', [username.slice(0, 64)]);
-  // Toujours faire le compare même si l'user n'existe pas (éviter timing attack)
   const dummyHash = '$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
   const hash = rows.length > 0 ? rows[0].password_hash : dummyHash;
   const valid = await bcrypt.compare(password, hash);
@@ -275,20 +274,20 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ username: req.admin.username, role: req.admin.role });
 });
 
-// ─── SETUP INITIAL ADMIN ──────────────────────────────────────────────────────
+// ─── SETUP INITIAL ADMIN ───────────────────────────────────────────────────────────────────
 
 app.post('/api/setup', async (req, res) => {
   const { secret, username, password } = req.body;
   if (!secret || secret !== process.env.SETUP_SECRET) return res.status(403).json({ error: 'Secret invalide' });
 
   const existing = getQuery('SELECT id FROM admins LIMIT 1');
-  if (existing.length > 0) return res.status(400).json({ error: 'Déjà configuré' });
+  if (existing.length > 0) return res.status(400).json({ error: 'Deja configure' });
 
   if (!username || typeof username !== 'string' || username.length < 3 || username.length > 32) {
-    return res.status(400).json({ error: "Nom d'utilisateur invalide (3-32 caractères)" });
+    return res.status(400).json({ error: "Nom d'utilisateur invalide (3-32 caracteres)" });
   }
   if (!password || typeof password !== 'string' || password.length < 8) {
-    return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
+    return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caracteres)' });
   }
 
   const hash = await bcrypt.hash(password, 12);
@@ -296,9 +295,8 @@ app.post('/api/setup', async (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── LOG INGESTION ────────────────────────────────────────────────────────────
+// ─── LOG INGESTION ────────────────────────────────────────────────────────────────────────────
 
-// Envoi d'un seul log
 app.post('/api/ingest', requireApiKey, (req, res) => {
   const { level = 'info', message, meta, source } = req.body;
   if (!message || typeof message !== 'string') return res.status(400).json({ error: 'message requis' });
@@ -317,10 +315,9 @@ app.post('/api/ingest', requireApiKey, (req, res) => {
   res.json({ ok: true, site: req.site.site_name });
 });
 
-// Envoi groupé de plusieurs logs
 app.post('/api/ingest/batch', requireApiKey, (req, res) => {
   const { logs } = req.body;
-  if (!Array.isArray(logs)) return res.status(400).json({ error: 'logs doit être un tableau' });
+  if (!Array.isArray(logs)) return res.status(400).json({ error: 'logs doit etre un tableau' });
 
   const validLevels = ['debug', 'info', 'warn', 'error', 'critical'];
   let inserted = 0;
@@ -342,7 +339,7 @@ app.post('/api/ingest/batch', requireApiKey, (req, res) => {
   res.json({ ok: true, inserted });
 });
 
-// ─── LOGS API ─────────────────────────────────────────────────────────────────
+// ─── LOGS API ───────────────────────────────────────────────────────────────────────────────
 
 app.get('/api/logs', requireAuth, (req, res) => {
   const { site, level, search, from, to, page = 1, limit = 50 } = req.query;
@@ -385,7 +382,7 @@ app.delete('/api/logs', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── STATS ────────────────────────────────────────────────────────────────────
+// ─── STATS ─────────────────────────────────────────────────────────────────────────────────────
 
 app.get('/api/stats', requireAuth, (req, res) => {
   const total = getQuery('SELECT COUNT(*) as n FROM logs')[0]?.n || 0;
@@ -403,7 +400,7 @@ app.get('/api/stats', requireAuth, (req, res) => {
   res.json({ total, byLevel, bySite, last24h, last7d, logsPerDay });
 });
 
-// ─── SITES (API KEYS) ─────────────────────────────────────────────────────────
+// ─── SITES (API KEYS) ────────────────────────────────────────────────────────────────────────
 
 app.get('/api/sites', requireAuth, (req, res) => {
   const rows = getQuery('SELECT id, site_name, site_url, created_at, last_used, active FROM api_keys ORDER BY created_at DESC');
@@ -411,14 +408,15 @@ app.get('/api/sites', requireAuth, (req, res) => {
 });
 
 app.post('/api/sites', requireAdmin, (req, res) => {
-  const { site_name, site_url } = req.body;
-  if (!site_name) return res.status(400).json({ error: 'site_name requis' });
+  const name = req.body.name || req.body.site_name;
+  const url = req.body.url || req.body.site_url;
+  if (!name) return res.status(400).json({ error: 'name requis' });
 
   const rawKey = crypto.randomBytes(32).toString('hex');
   const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
 
-  runQuery('INSERT INTO api_keys (key_hash, site_name, site_url) VALUES (?, ?, ?)', [keyHash, site_name, site_url || null]);
-  res.json({ ok: true, api_key: rawKey, site_name });
+  runQuery('INSERT INTO api_keys (key_hash, site_name, site_url) VALUES (?, ?, ?)', [keyHash, name, url || null]);
+  res.json({ ok: true, api_key: rawKey, site_name: name });
 });
 
 app.patch('/api/sites/:id', requireAdmin, (req, res) => {
@@ -432,7 +430,7 @@ app.delete('/api/sites/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── ADMINS ───────────────────────────────────────────────────────────────────
+// ─── ADMINS ───────────────────────────────────────────────────────────────────────────────────
 
 app.get('/api/admins', requireAdmin, (req, res) => {
   const rows = getQuery('SELECT id, username, role, created_at FROM admins ORDER BY created_at ASC');
@@ -443,10 +441,10 @@ app.post('/api/admins', requireAdmin, async (req, res) => {
   const { username, password, role = 'viewer' } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Champs manquants' });
   if (typeof username !== 'string' || username.length < 3 || username.length > 32) {
-    return res.status(400).json({ error: "Nom d'utilisateur invalide (3-32 caractères)" });
+    return res.status(400).json({ error: "Nom d'utilisateur invalide (3-32 caracteres)" });
   }
   if (typeof password !== 'string' || password.length < 8) {
-    return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
+    return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caracteres)' });
   }
   const validRoles = ['admin', 'viewer'];
   const safeRole = validRoles.includes(role) ? role : 'viewer';
@@ -456,28 +454,28 @@ app.post('/api/admins', requireAdmin, async (req, res) => {
     runQuery('INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, safeRole]);
     res.json({ ok: true });
   } catch {
-    res.status(400).json({ error: "Nom d'utilisateur déjà utilisé" });
+    res.status(400).json({ error: "Nom d'utilisateur deja utilise" });
   }
 });
 
 app.delete('/api/admins/:id', requireAdmin, (req, res) => {
   if (parseInt(req.params.id) === req.admin.id) {
-    return res.status(400).json({ error: 'Impossible de se supprimer soi-même' });
+    return res.status(400).json({ error: 'Impossible de se supprimer soi-meme' });
   }
   runQuery('DELETE FROM admins WHERE id = ?', [req.params.id]);
   res.json({ ok: true });
 });
 
-// ─── FALLBACK SPA ─────────────────────────────────────────────────────────────
+// ─── FALLBACK SPA ─────────────────────────────────────────────────────────────────────────────
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ─── START ────────────────────────────────────────────────────────────────────
+// ─── START ────────────────────────────────────────────────────────────────────────────────────
 
 initDB().then(() => {
   app.listen(PORT, () => {
-    console.log(`[LOG-DASHBOARD] Serveur démarré sur le port ${PORT}`);
+    console.log(`[LOG-DASHBOARD] Serveur demarre sur le port ${PORT}`);
   });
 });
