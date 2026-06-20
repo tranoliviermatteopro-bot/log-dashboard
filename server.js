@@ -134,6 +134,7 @@ const STATIC_KEYS = {};
     if (name && key) STATIC_KEYS[key] = name;
   }
 });
+console.log('[STATIC_KEYS] Cles chargees:', Object.keys(STATIC_KEYS).length, '| Noms:', Object.values(STATIC_KEYS).join(', ') || '(aucune)');
 
 function requireApiKey(req, res, next) {
   const key = req.headers['x-api-key'];
