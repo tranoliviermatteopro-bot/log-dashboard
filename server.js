@@ -3,8 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const initSqlJs = require('sql.js');
-const fs = require('fs');
+const { Pool } = require('pg');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -12,7 +11,11 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme_jwt_secret_logdash';
-const DB_PATH = path.join(__dirname, 'data.db');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -30,7 +33,9 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
@@ -61,14 +66,12 @@ function checkLockout(ip) {
   loginFailures.delete(ip);
   return false;
 }
-
 function recordFailure(ip) {
   const entry = loginFailures.get(ip) || { count: 0, unlockedAt: 0 };
   entry.count++;
   if (entry.count >= MAX_FAILURES) { entry.unlockedAt = Date.now() + LOCKOUT_MS; entry.count = 0; }
   loginFailures.set(ip, entry);
 }
-
 function clearFailures(ip) { loginFailures.delete(ip); }
 
 function sanitizeStr(val, maxLen = 1000) {
@@ -79,35 +82,14 @@ function sanitizeStr(val, maxLen = 1000) {
 app.use(express.json({ limit: '512kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-let db;
-let SQL;
-
 async function initDB() {
-  SQL = await initSqlJs();
-  if (fs.existsSync(DB_PATH)) {
-    db = new SQL.Database(fs.readFileSync(DB_PATH));
-  } else {
-    db = new SQL.Database();
-  }
-  db.run(`CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT DEFAULT 'viewer', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-  db.run(`CREATE TABLE IF NOT EXISTS api_keys (id INTEGER PRIMARY KEY AUTOINCREMENT, key_hash TEXT UNIQUE NOT NULL, site_name TEXT NOT NULL, site_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_used DATETIME, active INTEGER DEFAULT 1)`);
-  db.run(`CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, site_name TEXT NOT NULL, level TEXT NOT NULL DEFAULT 'info', message TEXT NOT NULL, meta TEXT, source TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_logs_site ON logs(site_name)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)`);
-  saveDB();
+  await pool.query(`CREATE TABLE IF NOT EXISTS admins (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT DEFAULT 'viewer', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS api_keys (id SERIAL PRIMARY KEY, key_hash TEXT UNIQUE NOT NULL, site_name TEXT NOT NULL, site_url TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_used TIMESTAMP, active BOOLEAN DEFAULT true)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS logs (id SERIAL PRIMARY KEY, site_name TEXT NOT NULL, level TEXT NOT NULL DEFAULT 'info', message TEXT NOT NULL, meta TEXT, source TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_logs_site ON logs(site_name)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)');
   console.log('[DB] Base de donnees initialisee');
-}
-
-function saveDB() { fs.writeFileSync(DB_PATH, Buffer.from(db.export())); }
-function runQuery(sql, params = []) { db.run(sql, params); saveDB(); }
-function getQuery(sql, params = []) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params);
-  const rows = [];
-  while (stmt.step()) rows.push(stmt.getAsObject());
-  stmt.free();
-  return rows;
 }
 
 function requireAuth(req, res, next) {
@@ -116,7 +98,6 @@ function requireAuth(req, res, next) {
   try { req.admin = jwt.verify(token, JWT_SECRET); next(); }
   catch { res.status(401).json({ error: 'Token invalide ou expire' }); }
 }
-
 function requireAdmin(req, res, next) {
   requireAuth(req, res, () => {
     if (req.admin.role !== 'admin') return res.status(403).json({ error: 'Acces refuse' });
@@ -124,44 +105,32 @@ function requireAdmin(req, res, next) {
   });
 }
 
-// Cles statiques persistantes (env var STATIC_KEYS="NomSite:cle,AutreSite:autrecle")
-// Cles hardcodees (persistantes sans env var)
-const HARDCODED_KEYS = {
-  'boulangerie-zrevents06-key-2024': 'Boulangerie ZREvents06',
-};
-const STATIC_KEYS = { ...HARDCODED_KEYS };
+const STATIC_KEYS = {};
 (process.env.STATIC_KEYS || '').split(',').forEach(pair => {
   const idx = pair.indexOf(':');
-  if (idx > 0) {
-    const name = pair.slice(0, idx).trim();
-    const key  = pair.slice(idx + 1).trim();
-    if (name && key) STATIC_KEYS[key] = name;
-  }
+  if (idx > 0) { const name = pair.slice(0,idx).trim(); const key = pair.slice(idx+1).trim(); if (name && key) STATIC_KEYS[key] = name; }
 });
 console.log('[STATIC_KEYS] Cles chargees:', Object.keys(STATIC_KEYS).length, '| Noms:', Object.values(STATIC_KEYS).join(', ') || '(aucune)');
 
-function requireApiKey(req, res, next) {
+async function requireApiKey(req, res, next) {
   const key = req.headers['x-api-key'];
   if (!key) return res.status(401).json({ error: 'Cle API manquante' });
-  if (STATIC_KEYS[key]) {
-    req.site = { id: null, site_name: STATIC_KEYS[key], site_url: null };
-    return next();
-  }
+  if (STATIC_KEYS[key]) { req.site = { id: null, site_name: STATIC_KEYS[key], site_url: null }; return next(); }
   const keyHash = crypto.createHash('sha256').update(key).digest('hex');
-  const rows = getQuery('SELECT * FROM api_keys WHERE key_hash = ? AND active = 1', [keyHash]);
+  const { rows } = await pool.query('SELECT * FROM api_keys WHERE key_hash = $1 AND active = true', [keyHash]);
   if (rows.length === 0) return res.status(401).json({ error: 'Cle API invalide' });
   req.site = rows[0];
-  runQuery('UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE id = ?', [rows[0].id]);
+  await pool.query('UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE id = $1', [rows[0].id]);
   next();
 }
 
 app.post('/api/auth/login', async (req, res) => {
   const ip = req.ip || req.connection.remoteAddress;
-  if (checkLockout(ip)) return res.status(429).json({ error: 'Compte temporairement bloque.' });
+  if (checkLockout(ip)) return res.status(429).json({ error: 'Compte bloque. Reessayez dans 15 minutes.' });
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Champs manquants' });
   if (typeof username !== 'string' || typeof password !== 'string') return res.status(400).json({ error: 'Champs invalides' });
-  const rows = getQuery('SELECT * FROM admins WHERE username = ?', [username.slice(0, 64)]);
+  const { rows } = await pool.query('SELECT * FROM admins WHERE username = $1', [username.slice(0,64)]);
   const dummyHash = '$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
   const hash = rows.length > 0 ? rows[0].password_hash : dummyHash;
   const valid = await bcrypt.compare(password, hash);
@@ -172,119 +141,145 @@ app.post('/api/auth/login', async (req, res) => {
   res.json({ token, username: admin.username, role: admin.role });
 });
 
-app.get('/api/auth/me', requireAuth, (req, res) => res.json({ username: req.admin.username, role: req.admin.role }));
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ username: req.admin.username, role: req.admin.role });
+});
 
 app.post('/api/setup', async (req, res) => {
   const { secret, username, password } = req.body;
   if (!secret || secret !== process.env.SETUP_SECRET) return res.status(403).json({ error: 'Secret invalide' });
-  const existing = getQuery('SELECT id FROM admins LIMIT 1');
+  const { rows: existing } = await pool.query('SELECT id FROM admins LIMIT 1');
   if (existing.length > 0) return res.status(400).json({ error: 'Deja configure' });
-  if (!username || typeof username !== 'string' || username.length < 3 || username.length > 32) return res.status(400).json({ error: 'Nom invalide' });
-  if (!password || typeof password !== 'string' || password.length < 8) return res.status(400).json({ error: 'Mot de passe trop court' });
+  if (!username || typeof username !== 'string' || username.length < 3 || username.length > 32) return res.status(400).json({ error: 'Nom invalide (3-32 caracteres)' });
+  if (!password || typeof password !== 'string' || password.length < 8) return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caracteres)' });
   const hash = await bcrypt.hash(password, 12);
-  runQuery('INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'admin']);
+  await pool.query('INSERT INTO admins (username, password_hash, role) VALUES ($1, $2, $3)', [username, hash, 'admin']);
   res.json({ ok: true });
 });
 
-app.post('/api/ingest', requireApiKey, (req, res) => {
+app.post('/api/ingest', requireApiKey, async (req, res) => {
   const { level = 'info', message, meta, source } = req.body;
   if (!message || typeof message !== 'string') return res.status(400).json({ error: 'message requis' });
-  const validLevels = ['debug', 'info', 'warn', 'error', 'critical'];
+  const validLevels = ['debug','info','warn','error','critical'];
   const safeLevel = validLevels.includes(level) ? level : 'info';
   const safeMessage = sanitizeStr(message, 2000);
   const safeSource = source ? sanitizeStr(String(source), 200) : null;
-  const metaStr = meta ? (typeof meta === 'string' ? meta.slice(0, 5000) : JSON.stringify(meta).slice(0, 5000)) : null;
-  runQuery('INSERT INTO logs (site_name, level, message, meta, source) VALUES (?, ?, ?, ?, ?)', [req.site.site_name, safeLevel, safeMessage, metaStr, safeSource]);
+  const metaStr = meta ? (typeof meta === 'string' ? meta.slice(0,5000) : JSON.stringify(meta).slice(0,5000)) : null;
+  await pool.query('INSERT INTO logs (site_name, level, message, meta, source) VALUES ($1, $2, $3, $4, $5)', [req.site.site_name, safeLevel, safeMessage, metaStr, safeSource]);
   res.json({ ok: true, site: req.site.site_name });
 });
 
-app.post('/api/ingest/batch', requireApiKey, (req, res) => {
+app.post('/api/ingest/batch', requireApiKey, async (req, res) => {
   const { logs } = req.body;
   if (!Array.isArray(logs)) return res.status(400).json({ error: 'logs doit etre un tableau' });
-  const validLevels = ['debug', 'info', 'warn', 'error', 'critical'];
+  const validLevels = ['debug','info','warn','error','critical'];
   let inserted = 0;
-  for (const log of logs.slice(0, 100)) {
+  for (const log of logs.slice(0,100)) {
     const { level = 'info', message, meta, source } = log;
     if (!message || typeof message !== 'string') continue;
     const safeLevel = validLevels.includes(level) ? level : 'info';
-    const metaStr = meta ? JSON.stringify(meta).slice(0, 5000) : null;
-    db.run('INSERT INTO logs (site_name, level, message, meta, source) VALUES (?, ?, ?, ?, ?)', [req.site.site_name, safeLevel, sanitizeStr(message, 2000), metaStr, source ? sanitizeStr(String(source), 200) : null]);
+    const safeMessage = sanitizeStr(message, 2000);
+    const safeSource = source ? sanitizeStr(String(source), 200) : null;
+    const metaStr = meta ? (typeof meta === 'string' ? meta.slice(0,5000) : JSON.stringify(meta).slice(0,5000)) : null;
+    await pool.query('INSERT INTO logs (site_name, level, message, meta, source) VALUES ($1, $2, $3, $4, $5)', [req.site.site_name, safeLevel, safeMessage, metaStr, safeSource]);
     inserted++;
   }
-  saveDB();
   res.json({ ok: true, inserted });
 });
 
-app.get('/api/logs', requireAuth, (req, res) => {
+app.get('/api/logs', requireAuth, async (req, res) => {
   const { site, level, search, from, to, page = 1, limit = 50 } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
-  let where = [], params = [];
-  if (site && site !== 'all') { where.push('site_name = ?'); params.push(site); }
-  if (level && level !== 'all') { where.push('level = ?'); params.push(level); }
-  if (search) { where.push('(message LIKE ? OR meta LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
-  if (from) { where.push('timestamp >= ?'); params.push(from); }
-  if (to) { where.push('timestamp <= ?'); params.push(to); }
+  let where = []; let params = [];
+  if (site && site !== 'all') { params.push(site); where.push(`site_name = $${params.length}`); }
+  if (level && level !== 'all') { params.push(level); where.push(`level = $${params.length}`); }
+  if (search) { params.push(`%${search}%`, `%${search}%`); where.push(`(message LIKE $${params.length-1} OR meta LIKE $${params.length})`); }
+  if (from) { params.push(from); where.push(`timestamp >= $${params.length}`); }
+  if (to) { params.push(to); where.push(`timestamp <= $${params.length}`); }
   const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
-  const total = getQuery(`SELECT COUNT(*) as total FROM logs ${whereClause}`, params)[0]?.total || 0;
-  const rows = getQuery(`SELECT * FROM logs ${whereClause} ORDER BY timestamp DESC LIMIT ? OFFSET ?`, [...params, parseInt(limit), offset]);
+  const { rows: countRows } = await pool.query(`SELECT COUNT(*) as total FROM logs ${whereClause}`, params);
+  const total = parseInt(countRows[0]?.total) || 0;
+  const limitParams = [...params, parseInt(limit), offset];
+  const { rows } = await pool.query(`SELECT * FROM logs ${whereClause} ORDER BY timestamp DESC LIMIT $${limitParams.length-1} OFFSET $${limitParams.length}`, limitParams);
   res.json({ logs: rows, total, page: parseInt(page), limit: parseInt(limit) });
 });
 
-app.delete('/api/logs/:id', requireAdmin, (req, res) => { runQuery('DELETE FROM logs WHERE id = ?', [req.params.id]); res.json({ ok: true }); });
-app.delete('/api/logs', requireAdmin, (req, res) => {
-  const { site } = req.query;
-  site ? runQuery('DELETE FROM logs WHERE site_name = ?', [site]) : runQuery('DELETE FROM logs');
+app.delete('/api/logs/:id', requireAdmin, async (req, res) => {
+  await pool.query('DELETE FROM logs WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
-app.get('/api/stats', requireAuth, (req, res) => {
-  const total = getQuery('SELECT COUNT(*) as n FROM logs')[0]?.n || 0;
-  const byLevel = getQuery('SELECT level, COUNT(*) as n FROM logs GROUP BY level');
-  const bySite = getQuery('SELECT site_name, COUNT(*) as n FROM logs GROUP BY site_name ORDER BY n DESC');
-  const last24h = getQuery("SELECT COUNT(*) as n FROM logs WHERE timestamp >= datetime('now', '-24 hours')")[0]?.n || 0;
-  const last7d = getQuery("SELECT COUNT(*) as n FROM logs WHERE timestamp >= datetime('now', '-7 days')")[0]?.n || 0;
-  const logsPerDay = getQuery(`SELECT date(timestamp) as day, COUNT(*) as n FROM logs WHERE timestamp >= datetime('now', '-30 days') GROUP BY day ORDER BY day ASC`);
+app.delete('/api/logs', requireAdmin, async (req, res) => {
+  const { site } = req.query;
+  if (site) await pool.query('DELETE FROM logs WHERE site_name = $1', [site]);
+  else await pool.query('DELETE FROM logs');
+  res.json({ ok: true });
+});
+
+app.get('/api/stats', requireAuth, async (req, res) => {
+  const { rows: totalRows } = await pool.query('SELECT COUNT(*) as n FROM logs');
+  const total = parseInt(totalRows[0]?.n) || 0;
+  const { rows: byLevel } = await pool.query('SELECT level, COUNT(*) as n FROM logs GROUP BY level');
+  const { rows: bySite } = await pool.query('SELECT site_name, COUNT(*) as n FROM logs GROUP BY site_name ORDER BY n DESC');
+  const { rows: last24hRows } = await pool.query("SELECT COUNT(*) as n FROM logs WHERE timestamp >= NOW() - INTERVAL '24 hours'");
+  const last24h = parseInt(last24hRows[0]?.n) || 0;
+  const { rows: last7dRows } = await pool.query("SELECT COUNT(*) as n FROM logs WHERE timestamp >= NOW() - INTERVAL '7 days'");
+  const last7d = parseInt(last7dRows[0]?.n) || 0;
+  const { rows: logsPerDay } = await pool.query("SELECT timestamp::date as day, COUNT(*) as n FROM logs WHERE timestamp >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day ASC");
   res.json({ total, byLevel, bySite, last24h, last7d, logsPerDay });
 });
 
-app.get('/api/sites', requireAuth, (req, res) => {
-  const rows = getQuery('SELECT id, site_name, site_url, created_at, last_used, active FROM api_keys ORDER BY created_at DESC');
+app.get('/api/sites', requireAuth, async (req, res) => {
+  const { rows } = await pool.query('SELECT id, site_name, site_url, created_at, last_used, active FROM api_keys ORDER BY created_at DESC');
   res.json(rows);
 });
 
-app.post('/api/sites', requireAdmin, (req, res) => {
-  const name = req.body.name || req.body.site_name;
-  const url = req.body.url || req.body.site_url;
-  if (!name) return res.status(400).json({ error: 'name requis' });
+app.post('/api/sites', requireAdmin, async (req, res) => {
+  const { site_name, site_url } = req.body;
+  if (!site_name) return res.status(400).json({ error: 'site_name requis' });
   const rawKey = crypto.randomBytes(32).toString('hex');
   const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
-  runQuery('INSERT INTO api_keys (key_hash, site_name, site_url) VALUES (?, ?, ?)', [keyHash, name, url || null]);
-  res.json({ ok: true, api_key: rawKey, site_name: name });
+  await pool.query('INSERT INTO api_keys (key_hash, site_name, site_url) VALUES ($1, $2, $3)', [keyHash, site_name, site_url || null]);
+  res.json({ ok: true, api_key: rawKey, site_name });
 });
 
-app.patch('/api/sites/:id', requireAdmin, (req, res) => { runQuery('UPDATE api_keys SET active = ? WHERE id = ?', [req.body.active ? 1 : 0, req.params.id]); res.json({ ok: true }); });
-app.delete('/api/sites/:id', requireAdmin, (req, res) => { runQuery('DELETE FROM api_keys WHERE id = ?', [req.params.id]); res.json({ ok: true }); });
+app.patch('/api/sites/:id', requireAdmin, async (req, res) => {
+  const { active } = req.body;
+  await pool.query('UPDATE api_keys SET active = $1 WHERE id = $2', [active ? true : false, req.params.id]);
+  res.json({ ok: true });
+});
 
-app.get('/api/admins', requireAdmin, (req, res) => res.json(getQuery('SELECT id, username, role, created_at FROM admins ORDER BY created_at ASC')));
+app.delete('/api/sites/:id', requireAdmin, async (req, res) => {
+  await pool.query('DELETE FROM api_keys WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
+});
+
+app.get('/api/admins', requireAdmin, async (req, res) => {
+  const { rows } = await pool.query('SELECT id, username, role, created_at FROM admins ORDER BY created_at ASC');
+  res.json(rows);
+});
 
 app.post('/api/admins', requireAdmin, async (req, res) => {
   const { username, password, role = 'viewer' } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Champs manquants' });
-  if (typeof username !== 'string' || username.length < 3 || username.length > 32) return res.status(400).json({ error: 'Nom invalide' });
-  if (typeof password !== 'string' || password.length < 8) return res.status(400).json({ error: 'Mot de passe trop court' });
-  const safeRole = ['admin', 'viewer'].includes(role) ? role : 'viewer';
+  if (typeof username !== 'string' || username.length < 3 || username.length > 32) return res.status(400).json({ error: 'Nom invalide (3-32 caracteres)' });
+  if (typeof password !== 'string' || password.length < 8) return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caracteres)' });
+  const validRoles = ['admin','viewer'];
+  const safeRole = validRoles.includes(role) ? role : 'viewer';
   const hash = await bcrypt.hash(password, 12);
-  try { runQuery('INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, safeRole]); res.json({ ok: true }); }
+  try { await pool.query('INSERT INTO admins (username, password_hash, role) VALUES ($1, $2, $3)', [username, hash, safeRole]); res.json({ ok: true }); }
   catch { res.status(400).json({ error: 'Nom deja utilise' }); }
 });
 
-app.delete('/api/admins/:id', requireAdmin, (req, res) => {
+app.delete('/api/admins/:id', requireAdmin, async (req, res) => {
   if (parseInt(req.params.id) === req.admin.id) return res.status(400).json({ error: 'Impossible de se supprimer soi-meme' });
-  runQuery('DELETE FROM admins WHERE id = ?', [req.params.id]);
+  await pool.query('DELETE FROM admins WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 initDB().then(() => {
   app.listen(PORT, () => console.log(`[LOG-DASHBOARD] Serveur demarre sur le port ${PORT}`));
