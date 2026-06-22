@@ -7,20 +7,44 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3348;
-      --accent: #6366f1; --accent-hover: #818cf8; --text: #e2e8f0; --text-muted: #94a3b8;
-      --debug: #64748b; --info: #38bdf8; --warn: #fbbf24; --error: #f87171;
-      --critical: #e11d48; --success: #34d399;
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3348;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --debug: #64748b;
+      --info: #38bdf8;
+      --warn: #fbbf24;
+      --error: #f87171;
+      --critical: #e11d48;
+      --success: #34d399;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; }
-    #login-page { display: flex; align-items: center; justify-content: center; flex: 1; }
-    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2.5rem 2rem; width: 360px; text-align: center; }
+
+    /* ── LOGIN ── */
+    #login-page {
+      display: flex; align-items: center; justify-content: center; flex: 1;
+    }
+    .login-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 2.5rem 2rem; width: 360px; text-align: center;
+    }
     .login-card h1 { font-size: 1.5rem; margin-bottom: 0.4rem; }
     .login-card p { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.8rem; }
-    .login-card input { width: 100%; padding: 0.65rem 0.9rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.95rem; margin-bottom: 0.8rem; outline: none; }
+    .login-card input {
+      width: 100%; padding: 0.65rem 0.9rem; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+      font-size: 0.95rem; margin-bottom: 0.8rem; outline: none;
+    }
     .login-card input:focus { border-color: var(--accent); }
-    .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: background 0.15s; }
+    .btn {
+      padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 0.9rem; font-weight: 500; transition: background 0.15s;
+    }
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-primary:hover { background: var(--accent-hover); }
     .btn-danger { background: #7f1d1d; color: #fca5a5; }
@@ -30,86 +54,165 @@
     .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
     .btn-full { width: 100%; }
     .error-msg { color: var(--error); font-size: 0.85rem; margin-bottom: 0.8rem; display: none; }
+
+    /* ── APP SHELL ── */
     #app { display: none; flex: 1; flex-direction: column; overflow: hidden; }
-    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; height: 52px; display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem; height: 52px; display: flex; align-items: center; gap: 1rem; flex-shrink: 0;
+    }
     .topbar-logo { font-size: 1rem; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 0.5rem; }
+    .topbar-logo svg { width:20px;height:20px; }
     .topbar-nav { display: flex; gap: 0.25rem; flex: 1; margin-left: 1.5rem; }
-    .nav-btn { padding: 0.4rem 0.9rem; border-radius: 6px; border: none; cursor: pointer; background: transparent; color: var(--text-muted); font-size: 0.88rem; font-weight: 500; transition: all 0.15s; }
+    .nav-btn {
+      padding: 0.4rem 0.9rem; border-radius: 6px; border: none; cursor: pointer;
+      background: transparent; color: var(--text-muted); font-size: 0.88rem; font-weight: 500; transition: all 0.15s;
+    }
     .nav-btn:hover { background: var(--surface2); color: var(--text); }
     .nav-btn.active { background: var(--accent); color: #fff; }
     .topbar-user { font-size: 0.85rem; color: var(--text-muted); margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+    .topbar-user span { color: var(--text); }
     .main { flex: 1; overflow-y: auto; padding: 1.5rem; }
+
+    /* ── CARDS / GRID ── */
     .section { display: none; }
     .section.active { display: block; }
     .page-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 1.25rem; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1rem 1.2rem;
+    }
     .stat-card .label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
     .stat-card .value { font-size: 1.9rem; font-weight: 700; }
     .stat-card.error .value { color: var(--error); }
     .stat-card.warn .value { color: var(--warn); }
     .stat-card.info .value { color: var(--info); }
     .stat-card.success .value { color: var(--success); }
-    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.5rem; }
+
+    /* ── CHART ── */
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1rem 1.2rem; margin-bottom: 1.5rem;
+    }
     .chart-card h3 { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; }
     .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-    .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
-    .filters input, .filters select { padding: 0.5rem 0.8rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.88rem; outline: none; }
+
+    /* ── FILTERS ── */
+    .filters {
+      display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem;
+    }
+    .filters input, .filters select {
+      padding: 0.5rem 0.8rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.88rem; outline: none;
+    }
+    .filters input:focus, .filters select:focus { border-color: var(--accent); }
     .filters input[type="text"] { flex: 1; min-width: 200px; }
+
+    /* ── TABLE ── */
     .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     th { background: var(--surface2); padding: 0.65rem 1rem; text-align: left; color: var(--text-muted); font-weight: 500; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
     td { padding: 0.65rem 1rem; border-top: 1px solid var(--border); vertical-align: top; }
     tr:hover td { background: var(--surface2); }
-    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }
+
+    .badge {
+      display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    }
     .badge-debug { background: #1e293b; color: var(--debug); }
     .badge-info { background: #0c2a3e; color: var(--info); }
     .badge-warn { background: #3b2a00; color: var(--warn); }
     .badge-error { background: #3b0d0d; color: var(--error); }
     .badge-critical { background: #5b0a22; color: #fda4af; }
-    .badge-active { background: #052e16; color: var(--success); }
-    .badge-inactive { background: #1c1917; color: #78716c; }
+
     .msg-cell { max-width: 380px; word-break: break-word; }
     .meta-snippet { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; font-family: monospace; }
     .time-cell { white-space: nowrap; color: var(--text-muted); font-size: 0.8rem; }
-    .site-badge { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0.15rem 0.5rem; font-size: 0.78rem; color: var(--accent-hover); }
+    .site-badge {
+      display: inline-block; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 5px; padding: 0.15rem 0.5rem; font-size: 0.78rem; color: var(--accent-hover);
+    }
+
+    /* ── PAGINATION ── */
     .pagination { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
     .pagination span { font-size: 0.85rem; color: var(--text-muted); }
+
+    /* ── SITES / ADMINS LISTS ── */
     .item-list { display: flex; flex-direction: column; gap: 0.75rem; }
-    .item-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; display: flex; align-items: center; gap: 1rem; }
+    .item-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1rem 1.2rem; display: flex; align-items: center; gap: 1rem;
+    }
     .item-card .item-info { flex: 1; }
     .item-card .item-name { font-weight: 600; font-size: 0.95rem; }
     .item-card .item-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
-    .add-form { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; margin-bottom: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
+
+    /* ── ADD FORM ── */
+    .add-form {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1.2rem; margin-bottom: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;
+    }
     .add-form label { font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem; }
-    .add-form input, .add-form select { padding: 0.55rem 0.8rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.88rem; outline: none; width: 180px; }
-    .api-key-box { background: #0d1117; border: 1px solid var(--success); border-radius: 8px; padding: 1rem; margin-top: 1rem; display: none; }
+    .add-form input, .add-form select {
+      padding: 0.55rem 0.8rem; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.88rem; outline: none; width: 180px;
+    }
+    .add-form input:focus, .add-form select:focus { border-color: var(--accent); }
+
+    /* ── API KEY REVEAL ── */
+    .api-key-box {
+      background: #0d1117; border: 1px solid var(--success); border-radius: 8px;
+      padding: 1rem; margin-top: 1rem; display: none;
+    }
     .api-key-box p { font-size: 0.82rem; color: var(--success); margin-bottom: 0.5rem; }
-    .api-key-box code { display: block; word-break: break-all; font-family: monospace; font-size: 0.85rem; color: var(--text); background: var(--surface2); padding: 0.5rem 0.75rem; border-radius: 6px; }
+    .api-key-box code {
+      display: block; word-break: break-all; font-family: monospace; font-size: 0.85rem;
+      color: var(--text); background: var(--surface2); padding: 0.5rem 0.75rem; border-radius: 6px;
+    }
+
+    /* ── TOAST ── */
     #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 999; }
-    .toast { padding: 0.75rem 1.1rem; border-radius: 8px; font-size: 0.875rem; animation: slideIn 0.2s ease; border-left: 4px solid; }
+    .toast {
+      padding: 0.75rem 1.1rem; border-radius: 8px; font-size: 0.875rem; animation: slideIn 0.2s ease;
+      border-left: 4px solid;
+    }
     .toast-success { background: #0d2518; border-color: var(--success); color: var(--success); }
     .toast-error { background: #2c0d0d; border-color: var(--error); color: var(--error); }
     .toast-info { background: #0d1e2c; border-color: var(--info); color: var(--info); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none;
+      align-items: center; justify-content: center; z-index: 100;
+    }
     .modal-overlay.open { display: flex; }
-    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; width: 90%; max-width: 580px; max-height: 80vh; overflow-y: auto; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.5rem; width: 90%; max-width: 580px; max-height: 80vh; overflow-y: auto;
+    }
     .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
     .modal-header h3 { font-size: 1rem; font-weight: 600; }
     .modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; }
     .modal pre { background: var(--surface2); border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
     .modal .field { margin-bottom: 0.75rem; }
     .modal .field-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.2rem; }
+    .modal .field-value { font-size: 0.9rem; }
+
     .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 0.9rem; }
+
+    /* ── ACTIVE BADGE ── */
+    .badge-active { background: #052e16; color: var(--success); }
+    .badge-inactive { background: #1c1917; color: #78716c; }
   </style>
 </head>
 <body>
 
+<!-- LOGIN -->
 <div id="login-page">
   <div class="login-card">
-    <h1>Log Dashboard</h1>
-    <p>Tableau de bord centralise de logs</p>
+    <h1>🛰 Log Dashboard</h1>
+    <p>Tableau de bord centralisé de logs</p>
     <p id="login-error" class="error-msg"></p>
     <input type="text" id="login-user" placeholder="Nom d'utilisateur" autocomplete="username" />
     <input type="password" id="login-pass" placeholder="Mot de passe" autocomplete="current-password" />
@@ -117,115 +220,173 @@
   </div>
 </div>
 
+<!-- APP -->
 <div id="app">
   <div class="topbar">
-    <div class="topbar-logo">Log Dashboard</div>
+    <div class="topbar-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Log Dashboard
+    </div>
     <div class="topbar-nav">
       <button class="nav-btn active" onclick="showSection('stats',this)">Stats</button>
       <button class="nav-btn" onclick="showSection('logs',this)">Logs</button>
       <button class="nav-btn" onclick="showSection('sites',this)">Sites</button>
-      <button class="nav-btn admin-only" onclick="showSection('admins',this)">Equipe</button>
+      <button class="nav-btn admin-only" onclick="showSection('admins',this)">Équipe</button>
     </div>
     <div class="topbar-user">
       <span id="topbar-username"></span>
-      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Deconnexion</button>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Déconnexion</button>
     </div>
   </div>
+
   <div class="main">
+
+    <!-- STATS -->
     <div id="section-stats" class="section active">
       <div class="page-title">Tableau de bord</div>
       <div class="stats-grid">
-        <div class="stat-card"><div class="label">Total logs</div><div class="value" id="stat-total">-</div></div>
-        <div class="stat-card error"><div class="label">Erreurs</div><div class="value" id="stat-error">-</div></div>
-        <div class="stat-card warn"><div class="label">Warnings</div><div class="value" id="stat-warn">-</div></div>
-        <div class="stat-card info"><div class="label">Dernieres 24h</div><div class="value" id="stat-24h">-</div></div>
-        <div class="stat-card success"><div class="label">7 derniers jours</div><div class="value" id="stat-7d">-</div></div>
+        <div class="stat-card"><div class="label">Total logs</div><div class="value" id="stat-total">—</div></div>
+        <div class="stat-card error"><div class="label">Erreurs</div><div class="value" id="stat-error">—</div></div>
+        <div class="stat-card warn"><div class="label">Warnings</div><div class="value" id="stat-warn">—</div></div>
+        <div class="stat-card info"><div class="label">Dernières 24h</div><div class="value" id="stat-24h">—</div></div>
+        <div class="stat-card success"><div class="label">7 derniers jours</div><div class="value" id="stat-7d">—</div></div>
       </div>
       <div class="chart-row">
-        <div class="chart-card"><h3>Logs par jour (30 derniers jours)</h3><canvas id="chartLogsPerDay" height="90"></canvas></div>
-        <div class="chart-card"><h3>Repartition par niveau</h3><canvas id="chartByLevel" height="90"></canvas></div>
+        <div class="chart-card">
+          <h3>Logs par jour (30 derniers jours)</h3>
+          <canvas id="chartLogsPerDay" height="90"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Répartition par niveau</h3>
+          <canvas id="chartByLevel" height="90"></canvas>
+        </div>
       </div>
-      <div class="chart-card"><h3>Logs par site</h3><div id="site-bars"></div></div>
+      <div class="chart-card">
+        <h3>Logs par site</h3>
+        <div id="site-bars"></div>
+      </div>
     </div>
 
+    <!-- LOGS -->
     <div id="section-logs" class="section">
-      <div class="page-title">Logs</div>
+      <div class="page-title">Logs en temps réel</div>
       <div class="filters">
-        <input type="text" id="log-search" placeholder="Rechercher..." oninput="debounceLoadLogs()" />
-        <select id="log-site" onchange="loadLogs()"><option value="all">Tous les sites</option></select>
+        <input type="text" id="log-search" placeholder="🔍 Rechercher..." oninput="debounceLoadLogs()" />
+        <select id="log-site" onchange="loadLogs()">
+          <option value="all">Tous les sites</option>
+        </select>
         <select id="log-level" onchange="loadLogs()">
           <option value="all">Tous les niveaux</option>
-          <option value="debug">Debug</option><option value="info">Info</option>
-          <option value="warn">Warn</option><option value="error">Error</option><option value="critical">Critical</option>
+          <option value="debug">Debug</option>
+          <option value="info">Info</option>
+          <option value="warn">Warn</option>
+          <option value="error">Error</option>
+          <option value="critical">Critical</option>
         </select>
         <input type="date" id="log-from" onchange="loadLogs()" />
         <input type="date" id="log-to" onchange="loadLogs()" />
-        <button class="btn btn-ghost btn-sm" onclick="clearLogFilters()">Reinitialiser</button>
-        <button class="btn btn-ghost btn-sm" onclick="loadLogs()">Actualiser</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearLogFilters()">Réinitialiser</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadLogs()">↻ Actualiser</button>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Heure</th><th>Site</th><th>Niveau</th><th>Message</th><th>Source</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Heure</th>
+              <th>Site</th>
+              <th>Niveau</th>
+              <th>Message</th>
+              <th>Source</th>
+              <th></th>
+            </tr>
+          </thead>
           <tbody id="logs-tbody"></tbody>
         </table>
       </div>
       <div class="pagination">
-        <button class="btn btn-ghost btn-sm" id="prev-page" onclick="changePage(-1)">Prec.</button>
+        <button class="btn btn-ghost btn-sm" id="prev-page" onclick="changePage(-1)">← Préc.</button>
         <span id="page-info">Page 1</span>
-        <button class="btn btn-ghost btn-sm" id="next-page" onclick="changePage(1)">Suiv.</button>
+        <button class="btn btn-ghost btn-sm" id="next-page" onclick="changePage(1)">Suiv. →</button>
       </div>
     </div>
 
+    <!-- SITES -->
     <div id="section-sites" class="section">
-      <div class="page-title">Sites connectes</div>
-      <div class="add-form admin-only">
-        <div><label>Nom du site *</label><input type="text" id="new-site-name" placeholder="ex: zrevents06" /></div>
-        <div><label>URL (optionnel)</label><input type="text" id="new-site-url" placeholder="https://monsite.onrender.com" /></div>
-        <button class="btn btn-primary" onclick="addSite()">+ Ajouter</button>
+      <div class="page-title">Sites connectés</div>
+      <div id="add-site-form" class="add-form admin-only">
+        <div>
+          <label>Nom du site *</label>
+          <input type="text" id="new-site-name" placeholder="ex: zrevents06" />
+        </div>
+        <div>
+          <label>URL (optionnel)</label>
+          <input type="text" id="new-site-url" placeholder="https://monsite.onrender.com" />
+        </div>
+        <button class="btn btn-primary" onclick="addSite()">+ Ajouter le site</button>
       </div>
       <div id="api-key-reveal" class="api-key-box">
-        <p>Copie cette cle API maintenant - elle ne sera plus affichee :</p>
+        <p>⚠️ Copie cette clé API maintenant — elle ne sera plus affichée :</p>
         <code id="api-key-value"></code>
-        <button class="btn btn-ghost btn-sm" style="margin-top:0.75rem" onclick="copyApiKey()">Copier</button>
+        <button class="btn btn-ghost btn-sm" style="margin-top:0.75rem" onclick="copyApiKey()">📋 Copier</button>
       </div>
       <div id="sites-list" class="item-list"></div>
     </div>
 
+    <!-- ÉQUIPE -->
     <div id="section-admins" class="section">
-      <div class="page-title">Equipe</div>
+      <div class="page-title">Équipe</div>
       <div class="add-form admin-only">
-        <div><label>Nom d'utilisateur *</label><input type="text" id="new-admin-user" placeholder="username" /></div>
-        <div><label>Mot de passe *</label><input type="password" id="new-admin-pass" placeholder="password" /></div>
-        <div><label>Role</label><select id="new-admin-role"><option value="viewer">Lecteur</option><option value="admin">Admin</option></select></div>
+        <div>
+          <label>Nom d'utilisateur *</label>
+          <input type="text" id="new-admin-user" placeholder="username" />
+        </div>
+        <div>
+          <label>Mot de passe *</label>
+          <input type="password" id="new-admin-pass" placeholder="••••••••" />
+        </div>
+        <div>
+          <label>Rôle</label>
+          <select id="new-admin-role">
+            <option value="viewer">Lecteur</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
         <button class="btn btn-primary" onclick="addAdmin()">+ Ajouter</button>
       </div>
       <div id="admins-list" class="item-list"></div>
     </div>
+
   </div>
 </div>
 
+<!-- TOAST CONTAINER -->
 <div id="toast-container"></div>
 
-<div id="log-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+<!-- LOG DETAIL MODAL -->
+<div id="log-modal" class="modal-overlay" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-header">
-      <h3>Detail du log</h3>
-      <button class="modal-close" onclick="document.getElementById('log-modal').classList.remove('open')">X</button>
+      <h3>Détail du log</h3>
+      <button class="modal-close" onclick="document.getElementById('log-modal').classList.remove('open')">✕</button>
     </div>
     <div id="modal-content"></div>
   </div>
 </div>
 
 <script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
 let token = localStorage.getItem('ld_token');
 let currentUser = null;
 let currentPage = 1;
 let totalLogs = 0;
 const LIMIT = 50;
+
 let chartLogsPerDay = null;
 let chartByLevel = null;
+
 let searchTimeout = null;
 
+// ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
   if (!token) return;
   try {
@@ -244,11 +405,13 @@ function showApp() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('topbar-username').textContent = currentUser.username;
+  // hide admin-only elements for viewers
   if (currentUser.role !== 'admin') {
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
   }
 }
 
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
 async function doLogin() {
   const username = document.getElementById('login-user').value.trim();
   const password = document.getElementById('login-pass').value;
@@ -256,7 +419,8 @@ async function doLogin() {
   errEl.style.display = 'none';
   try {
     const r = await fetch('/api/auth/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     const data = await r.json();
@@ -264,8 +428,13 @@ async function doLogin() {
     token = data.token;
     currentUser = { username: data.username, role: data.role };
     localStorage.setItem('ld_token', token);
-    showApp(); loadStats(); populateSiteFilter();
-  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+    showApp();
+    loadStats();
+    populateSiteFilter();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
 }
 
 document.addEventListener('keydown', e => {
@@ -273,85 +442,144 @@ document.addEventListener('keydown', e => {
 });
 
 function doLogout() {
-  token = null; currentUser = null;
-  localStorage.removeItem('ld_token'); location.reload();
+  token = null;
+  currentUser = null;
+  localStorage.removeItem('ld_token');
+  location.reload();
 }
 
+// ─── API HELPER ───────────────────────────────────────────────────────────────
 async function apiFetch(url, opts = {}) {
   const r = await fetch(url, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...(opts.headers || {})
+    },
     body: opts.body ? JSON.stringify(opts.body) : undefined
   });
-  if (r.status === 401) { doLogout(); throw new Error('Session expiree'); }
+  if (r.status === 401) { doLogout(); throw new Error('Session expirée'); }
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || 'Erreur serveur');
   return data;
 }
 
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
 function showSection(name, btn) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('section-' + name).classList.add('active');
+  document.getElementById(`section-${name}`).classList.add('active');
   if (btn) btn.classList.add('active');
+
   if (name === 'stats') loadStats();
   if (name === 'logs') loadLogs();
   if (name === 'sites') loadSites();
   if (name === 'admins') loadAdmins();
 }
 
+// ─── STATS ────────────────────────────────────────────────────────────────────
 async function loadStats() {
   try {
     const d = await apiFetch('/api/stats');
+
     document.getElementById('stat-total').textContent = d.total.toLocaleString();
     document.getElementById('stat-24h').textContent = d.last24h.toLocaleString();
     document.getElementById('stat-7d').textContent = d.last7d.toLocaleString();
-    const errCount = (d.byLevel.find(b => b.level === 'error') || {}).n || 0;
-    const critCount = (d.byLevel.find(b => b.level === 'critical') || {}).n || 0;
-    const warnCount = (d.byLevel.find(b => b.level === 'warn') || {}).n || 0;
+
+    const errCount = d.byLevel.find(b => b.level === 'error')?.n || 0;
+    const critCount = d.byLevel.find(b => b.level === 'critical')?.n || 0;
+    const warnCount = d.byLevel.find(b => b.level === 'warn')?.n || 0;
     document.getElementById('stat-error').textContent = (errCount + critCount).toLocaleString();
     document.getElementById('stat-warn').textContent = warnCount.toLocaleString();
+
     const labels = d.logsPerDay.map(r => r.day);
     const values = d.logsPerDay.map(r => r.n);
     if (chartLogsPerDay) chartLogsPerDay.destroy();
     chartLogsPerDay = new Chart(document.getElementById('chartLogsPerDay'), {
       type: 'bar',
-      data: { labels, datasets: [{ label: 'Logs', data: values, backgroundColor: '#6366f180', borderColor: '#6366f1', borderWidth: 1, borderRadius: 4 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: '#2e3348' } }, y: { ticks: { color: '#94a3b8' }, grid: { color: '#2e3348' } } } }
+      data: {
+        labels,
+        datasets: [{
+          label: 'Logs',
+          data: values,
+          backgroundColor: '#6366f180',
+          borderColor: '#6366f1',
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: '#2e3348' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: '#2e3348' } }
+        }
+      }
     });
+
     const levelColors = { debug: '#64748b', info: '#38bdf8', warn: '#fbbf24', error: '#f87171', critical: '#e11d48' };
     if (chartByLevel) chartByLevel.destroy();
     chartByLevel = new Chart(document.getElementById('chartByLevel'), {
       type: 'doughnut',
-      data: { labels: d.byLevel.map(b => b.level), datasets: [{ data: d.byLevel.map(b => b.n), backgroundColor: d.byLevel.map(b => levelColors[b.level] || '#6366f1'), borderWidth: 0 }] },
-      options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12 } } } }
+      data: {
+        labels: d.byLevel.map(b => b.level),
+        datasets: [{
+          data: d.byLevel.map(b => b.n),
+          backgroundColor: d.byLevel.map(b => levelColors[b.level] || '#6366f1'),
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12 } } }
+      }
     });
+
     const siteBarsEl = document.getElementById('site-bars');
     if (d.bySite.length === 0) {
-      siteBarsEl.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 0">Aucun log recu.</p>';
+      siteBarsEl.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 0">Aucun log reçu pour l\'instant.</p>';
     } else {
       const max = d.bySite[0].n;
-      siteBarsEl.innerHTML = d.bySite.map(s =>
-        '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.7rem">' +
-        '<div style="width:140px;font-size:.85rem;color:var(--accent-hover);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.site_name) + '</div>' +
-        '<div style="flex:1;background:var(--surface2);border-radius:4px;height:10px;overflow:hidden"><div style="width:' + Math.round(s.n/max*100) + '%;background:var(--accent);height:100%;border-radius:4px"></div></div>' +
-        '<div style="font-size:.85rem;color:var(--text-muted);width:60px;text-align:right">' + s.n.toLocaleString() + '</div></div>'
-      ).join('');
+      siteBarsEl.innerHTML = d.bySite.map(s => `
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.7rem">
+          <div style="width:140px;font-size:.85rem;color:var(--accent-hover);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.site_name}</div>
+          <div style="flex:1;background:var(--surface2);border-radius:4px;height:10px;overflow:hidden">
+            <div style="width:${Math.round(s.n/max*100)}%;background:var(--accent);height:100%;border-radius:4px"></div>
+          </div>
+          <div style="font-size:.85rem;color:var(--text-muted);width:60px;text-align:right">${s.n.toLocaleString()}</div>
+        </div>
+      `).join('');
     }
-  } catch (e) { toast('Erreur stats', 'error'); }
+  } catch (e) {
+    toast('Erreur lors du chargement des stats', 'error');
+  }
 }
 
+// ─── LOGS ─────────────────────────────────────────────────────────────────────
 async function populateSiteFilter() {
   try {
     const sites = await apiFetch('/api/sites');
     const sel = document.getElementById('log-site');
-    sites.forEach(s => { const opt = document.createElement('option'); opt.value = s.site_name; opt.textContent = s.site_name; sel.appendChild(opt); });
+    sites.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.site_name;
+      opt.textContent = s.site_name;
+      sel.appendChild(opt);
+    });
   } catch {}
 }
 
-function debounceLoadLogs() { clearTimeout(searchTimeout); searchTimeout = setTimeout(loadLogs, 400); }
+function debounceLoadLogs() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(loadLogs, 400);
+}
 
-async function loadLogs() { currentPage = 1; await fetchLogs(); }
+async function loadLogs() {
+  currentPage = 1;
+  await fetchLogs();
+}
 
 async function fetchLogs() {
   const search = document.getElementById('log-search').value;
@@ -359,56 +587,78 @@ async function fetchLogs() {
   const level = document.getElementById('log-level').value;
   const from = document.getElementById('log-from').value;
   const to = document.getElementById('log-to').value;
+
   const params = new URLSearchParams({ page: currentPage, limit: LIMIT });
   if (search) params.set('search', search);
   if (site !== 'all') params.set('site', site);
   if (level !== 'all') params.set('level', level);
   if (from) params.set('from', from);
   if (to) params.set('to', to + ' 23:59:59');
+
   try {
-    const d = await apiFetch('/api/logs?' + params);
+    const d = await apiFetch(`/api/logs?${params}`);
     totalLogs = d.total;
     renderLogs(d.logs);
-    document.getElementById('page-info').textContent = 'Page ' + currentPage + ' / ' + Math.max(1, Math.ceil(totalLogs / LIMIT)) + ' (' + totalLogs.toLocaleString() + ' logs)';
+    document.getElementById('page-info').textContent = `Page ${currentPage} / ${Math.max(1, Math.ceil(totalLogs / LIMIT))} (${totalLogs.toLocaleString()} logs)`;
     document.getElementById('prev-page').disabled = currentPage <= 1;
     document.getElementById('next-page').disabled = currentPage >= Math.ceil(totalLogs / LIMIT);
-  } catch (e) { toast('Erreur chargement logs', 'error'); }
+  } catch (e) {
+    toast('Erreur chargement logs', 'error');
+  }
 }
 
 function renderLogs(logs) {
   const tbody = document.getElementById('logs-tbody');
-  if (logs.length === 0) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">Aucun log trouve</div></td></tr>'; return; }
-  tbody.innerHTML = logs.map(log =>
-    '<tr>' +
-    '<td class="time-cell">' + formatDate(log.timestamp) + '</td>' +
-    '<td><span class="site-badge">' + esc(log.site_name) + '</span></td>' +
-    '<td><span class="badge badge-' + log.level + '">' + log.level + '</span></td>' +
-    '<td class="msg-cell">' + esc(log.message) + (log.meta ? '<div class="meta-snippet">' + esc(log.meta.substring(0,80)) + (log.meta.length > 80 ? '...' : '') + '</div>' : '') + '</td>' +
-    '<td style="color:var(--text-muted);font-size:.8rem">' + esc(log.source || '') + '</td>' +
-    '<td><button class="btn btn-ghost btn-sm" onclick=\'showLogDetail(' + JSON.stringify(JSON.stringify(log)) + ')\'>Detail</button>' +
-    (currentUser && currentUser.role === 'admin' ? '<button class="btn btn-danger btn-sm" style="margin-left:.3rem" onclick="deleteLog(' + log.id + ')">X</button>' : '') +
-    '</td></tr>'
-  ).join('');
+  if (logs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">Aucun log trouvé</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = logs.map(log => `
+    <tr>
+      <td class="time-cell">${formatDate(log.timestamp)}</td>
+      <td><span class="site-badge">${esc(log.site_name)}</span></td>
+      <td><span class="badge badge-${log.level}">${log.level}</span></td>
+      <td class="msg-cell">
+        ${esc(log.message)}
+        ${log.meta ? `<div class="meta-snippet">${esc(log.meta.substring(0, 80))}${log.meta.length > 80 ? '…' : ''}</div>` : ''}
+      </td>
+      <td style="color:var(--text-muted);font-size:.8rem">${esc(log.source || '')}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="showLogDetail(${JSON.stringify(JSON.stringify(log))})">Détail</button>
+        ${currentUser?.role === 'admin' ? `<button class="btn btn-danger btn-sm" style="margin-left:.3rem" onclick="deleteLog(${log.id})">✕</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
 }
 
 function showLogDetail(logJson) {
   const log = JSON.parse(logJson);
   let meta = '';
   try { meta = log.meta ? JSON.stringify(JSON.parse(log.meta), null, 2) : ''; } catch { meta = log.meta; }
-  document.getElementById('modal-content').innerHTML =
-    '<div class="field"><div class="field-label">Site</div><div class="field-value"><span class="site-badge">' + esc(log.site_name) + '</span></div></div>' +
-    '<div class="field"><div class="field-label">Niveau</div><div class="field-value"><span class="badge badge-' + log.level + '">' + log.level + '</span></div></div>' +
-    '<div class="field"><div class="field-label">Timestamp</div><div class="field-value" style="color:var(--text-muted)">' + log.timestamp + '</div></div>' +
-    (log.source ? '<div class="field"><div class="field-label">Source</div><div class="field-value" style="font-family:monospace;font-size:.85rem">' + esc(log.source) + '</div></div>' : '') +
-    '<div class="field"><div class="field-label">Message</div><pre>' + esc(log.message) + '</pre></div>' +
-    (meta ? '<div class="field"><div class="field-label">Meta</div><pre>' + esc(meta) + '</pre></div>' : '');
+  document.getElementById('modal-content').innerHTML = `
+    <div class="field"><div class="field-label">Site</div><div class="field-value"><span class="site-badge">${esc(log.site_name)}</span></div></div>
+    <div class="field"><div class="field-label">Niveau</div><div class="field-value"><span class="badge badge-${log.level}">${log.level}</span></div></div>
+    <div class="field"><div class="field-label">Timestamp</div><div class="field-value" style="color:var(--text-muted)">${log.timestamp}</div></div>
+    ${log.source ? `<div class="field"><div class="field-label">Source</div><div class="field-value" style="font-family:monospace;font-size:.85rem">${esc(log.source)}</div></div>` : ''}
+    <div class="field"><div class="field-label">Message</div><pre>${esc(log.message)}</pre></div>
+    ${meta ? `<div class="field"><div class="field-label">Meta / Contexte</div><pre>${esc(meta)}</pre></div>` : ''}
+  `;
   document.getElementById('log-modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('log-modal')) {
+    document.getElementById('log-modal').classList.remove('open');
+  }
 }
 
 async function deleteLog(id) {
   if (!confirm('Supprimer ce log ?')) return;
-  try { await apiFetch('/api/logs/' + id, { method: 'DELETE' }); toast('Log supprime', 'success'); fetchLogs(); }
-  catch (e) { toast(e.message, 'error'); }
+  try {
+    await apiFetch(`/api/logs/${id}`, { method: 'DELETE' });
+    toast('Log supprimé', 'success');
+    fetchLogs();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 function clearLogFilters() {
@@ -426,22 +676,32 @@ function changePage(dir) {
   fetchLogs();
 }
 
+// ─── SITES ────────────────────────────────────────────────────────────────────
 async function loadSites() {
   try {
     const sites = await apiFetch('/api/sites');
     const el = document.getElementById('sites-list');
-    if (sites.length === 0) { el.innerHTML = '<div class="empty-state">Aucun site connecte.<br>Ajoutez un site pour obtenir une cle API.</div>'; return; }
-    el.innerHTML = sites.map(s =>
-      '<div class="item-card">' +
-      '<div class="item-info"><div class="item-name">' + esc(s.site_name) + '</div>' +
-      '<div class="item-sub">' + (s.site_url ? '<a href="' + esc(s.site_url) + '" target="_blank" style="color:var(--accent-hover)">' + esc(s.site_url) + '</a> - ' : '') +
-      'Ajoute le ' + formatDate(s.created_at) + (s.last_used ? ' - Dernier log : ' + formatDate(s.last_used) : '') + '</div></div>' +
-      '<span class="badge ' + (s.active ? 'badge-active' : 'badge-inactive') + '">' + (s.active ? 'Actif' : 'Inactif') + '</span>' +
-      (currentUser && currentUser.role === 'admin' ?
-        '<button class="btn btn-ghost btn-sm" onclick="toggleSite(' + s.id + ',' + s.active + ')">' + (s.active ? 'Desactiver' : 'Activer') + '</button>' +
-        '<button class="btn btn-danger btn-sm" onclick="deleteSite(' + s.id + ',\'' + esc(s.site_name) + '\')">Supprimer</button>' : '') +
-      '</div>'
-    ).join('');
+    if (sites.length === 0) {
+      el.innerHTML = '<div class="empty-state">Aucun site connecté.<br>Ajoutez un site pour obtenir une clé API.</div>';
+      return;
+    }
+    el.innerHTML = sites.map(s => `
+      <div class="item-card">
+        <div class="item-info">
+          <div class="item-name">${esc(s.site_name)}</div>
+          <div class="item-sub">
+            ${s.site_url ? `<a href="${esc(s.site_url)}" target="_blank" style="color:var(--accent-hover)">${esc(s.site_url)}</a> · ` : ''}
+            Ajouté le ${formatDate(s.created_at)}
+            ${s.last_used ? ` · Dernier log : ${formatDate(s.last_used)}` : ''}
+          </div>
+        </div>
+        <span class="badge ${s.active ? 'badge-active' : 'badge-inactive'}">${s.active ? 'Actif' : 'Inactif'}</span>
+        ${currentUser?.role === 'admin' ? `
+          <button class="btn btn-ghost btn-sm" onclick="toggleSite(${s.id}, ${s.active})">${s.active ? 'Désactiver' : 'Activer'}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSite(${s.id}, '${esc(s.site_name)}')">Supprimer</button>
+        ` : ''}
+      </div>
+    `).join('');
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -455,40 +715,52 @@ async function addSite() {
     document.getElementById('api-key-reveal').style.display = 'block';
     document.getElementById('new-site-name').value = '';
     document.getElementById('new-site-url').value = '';
-    toast('Site "' + name + '" ajoute !', 'success');
-    loadSites(); populateSiteFilter();
+    toast(`Site "${name}" ajouté !`, 'success');
+    loadSites();
+    populateSiteFilter();
   } catch (e) { toast(e.message, 'error'); }
 }
 
 function copyApiKey() {
   const key = document.getElementById('api-key-value').textContent;
-  navigator.clipboard.writeText(key).then(() => toast('Cle copiee !', 'success'));
+  navigator.clipboard.writeText(key).then(() => toast('Clé copiée !', 'success'));
 }
 
 async function toggleSite(id, active) {
-  try { await apiFetch('/api/sites/' + id, { method: 'PATCH', body: { active: !active } }); toast('Statut mis a jour', 'success'); loadSites(); }
-  catch (e) { toast(e.message, 'error'); }
+  try {
+    await apiFetch(`/api/sites/${id}`, { method: 'PATCH', body: { active: !active } });
+    toast('Statut mis à jour', 'success');
+    loadSites();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 async function deleteSite(id, name) {
-  if (!confirm('Supprimer le site "' + name + '" et sa cle API ?')) return;
-  try { await apiFetch('/api/sites/' + id, { method: 'DELETE' }); toast('Site supprime', 'success'); document.getElementById('api-key-reveal').style.display = 'none'; loadSites(); }
-  catch (e) { toast(e.message, 'error'); }
+  if (!confirm(`Supprimer le site "${name}" et sa clé API ?`)) return;
+  try {
+    await apiFetch(`/api/sites/${id}`, { method: 'DELETE' });
+    toast('Site supprimé', 'success');
+    document.getElementById('api-key-reveal').style.display = 'none';
+    loadSites();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
+// ─── ADMINS ───────────────────────────────────────────────────────────────────
 async function loadAdmins() {
   try {
     const admins = await apiFetch('/api/admins');
     const el = document.getElementById('admins-list');
-    el.innerHTML = admins.map(a =>
-      '<div class="item-card">' +
-      '<div class="item-info"><div class="item-name">' + esc(a.username) + (a.id === (currentUser && currentUser.id) ? ' <span style="font-size:.75rem;color:var(--text-muted)">(vous)</span>' : '') + '</div>' +
-      '<div class="item-sub">Role : ' + a.role + ' - Cree le ' + formatDate(a.created_at) + '</div></div>' +
-      '<span class="badge ' + (a.role === 'admin' ? 'badge-active' : 'badge-inactive') + '">' + a.role + '</span>' +
-      (currentUser && currentUser.role === 'admin' && a.id !== currentUser.id ?
-        '<button class="btn btn-danger btn-sm" onclick="deleteAdmin(' + a.id + ',\'' + esc(a.username) + '\')">Supprimer</button>' : '') +
-      '</div>'
-    ).join('');
+    el.innerHTML = admins.map(a => `
+      <div class="item-card">
+        <div class="item-info">
+          <div class="item-name">${esc(a.username)} ${a.id === currentUser?.id ? '<span style="font-size:.75rem;color:var(--text-muted)">(vous)</span>' : ''}</div>
+          <div class="item-sub">Rôle : ${a.role} · Créé le ${formatDate(a.created_at)}</div>
+        </div>
+        <span class="badge ${a.role === 'admin' ? 'badge-active' : 'badge-inactive'}">${a.role}</span>
+        ${currentUser?.role === 'admin' && a.id !== currentUser?.id ? `
+          <button class="btn btn-danger btn-sm" onclick="deleteAdmin(${a.id}, '${esc(a.username)}')">Supprimer</button>
+        ` : ''}
+      </div>
+    `).join('');
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -501,17 +773,24 @@ async function addAdmin() {
     await apiFetch('/api/admins', { method: 'POST', body: { username, password, role } });
     document.getElementById('new-admin-user').value = '';
     document.getElementById('new-admin-pass').value = '';
-    toast('Utilisateur "' + username + '" ajoute', 'success'); loadAdmins();
+    toast(`Utilisateur "${username}" ajouté`, 'success');
+    loadAdmins();
   } catch (e) { toast(e.message, 'error'); }
 }
 
 async function deleteAdmin(id, name) {
-  if (!confirm('Supprimer l\'utilisateur "' + name + '" ?')) return;
-  try { await apiFetch('/api/admins/' + id, { method: 'DELETE' }); toast('Utilisateur supprime', 'success'); loadAdmins(); }
-  catch (e) { toast(e.message, 'error'); }
+  if (!confirm(`Supprimer l'utilisateur "${name}" ?`)) return;
+  try {
+    await apiFetch(`/api/admins/${id}`, { method: 'DELETE' });
+    toast('Utilisateur supprimé', 'success');
+    loadAdmins();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
-function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 function formatDate(ts) {
   if (!ts) return '';
@@ -519,15 +798,15 @@ function formatDate(ts) {
   return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
-function toast(msg, type) {
-  type = type || 'info';
+function toast(msg, type = 'info') {
   const el = document.createElement('div');
-  el.className = 'toast toast-' + type;
+  el.className = `toast toast-${type}`;
   el.textContent = msg;
   document.getElementById('toast-container').appendChild(el);
-  setTimeout(function() { el.remove(); }, 4000);
+  setTimeout(() => el.remove(), 4000);
 }
 
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
 init();
 </script>
 </body>
