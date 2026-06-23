@@ -493,6 +493,7 @@ async function loadStats() {
     document.getElementById('stat-error').textContent = (errCount + critCount).toLocaleString();
     document.getElementById('stat-warn').textContent = warnCount.toLocaleString();
 
+    // Chart: logs per day
     const labels = d.logsPerDay.map(r => r.day);
     const values = d.logsPerDay.map(r => r.n);
     if (chartLogsPerDay) chartLogsPerDay.destroy();
@@ -519,6 +520,7 @@ async function loadStats() {
       }
     });
 
+    // Chart: by level (doughnut)
     const levelColors = { debug: '#64748b', info: '#38bdf8', warn: '#fbbf24', error: '#f87171', critical: '#e11d48' };
     if (chartByLevel) chartByLevel.destroy();
     chartByLevel = new Chart(document.getElementById('chartByLevel'), {
@@ -537,6 +539,7 @@ async function loadStats() {
       }
     });
 
+    // Site bars
     const siteBarsEl = document.getElementById('site-bars');
     if (d.bySite.length === 0) {
       siteBarsEl.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 0">Aucun log reçu pour l\'instant.</p>';

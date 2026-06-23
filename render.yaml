@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: log-dashboard
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SETUP_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
